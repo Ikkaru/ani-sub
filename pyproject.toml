@@ -5,6 +5,10 @@ description = "ani-cli subtitle plugin"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "platformdirs>=4.12.4",
+    "questionary>=2.1.1",
+    "tomli>=2.5.0",
+    "tomli-w>=1.2.0",
     "typer>=0.27.3",
 ]
 
