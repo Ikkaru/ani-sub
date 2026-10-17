@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.text import Text
 from importlib.metadata import version as pkg_version
 from ani_sub import config as cfg
-from ani_sub import colors
+from ani_sub import colors, langcodes
 
 console = Console()
 
@@ -46,12 +46,17 @@ def main(
 
 
 # Command to Change Configuration
-# Key, label, type, option
-# TODO: For now this is only placeholder
+# Key, label, qmark, type, options
+
+LANGS = [
+    f"{code} - {names}"
+    for code, names in langcodes.all_languages().items()
+         ]
+
 FIELDS = [
-    ("target_lang", "Target language", "text", None),
-    ("source_lang", "Source language", "text", None),
-    ("player", "Player", "select", ["mpv", "vlc", "auto"]),
+    ("target_lang", "Target language", "🌏︎", "autocomplete", LANGS),
+    ("source_lang", "Source language", "🌏︎", "text", None), #PS: For now this is not required because ani-cli using default track which has english sub
+    ("player", "Player", "▶", "select", ["mpv", "vlc", "auto"]),
 ]
 
 
@@ -60,13 +65,20 @@ def config():
     """Open Configuration menu """
     while True:
         choices = []
-        for key, label, _kind, *_ in FIELDS:
+        for key, label, qmark, kind, options in FIELDS:
             current = cfg.get(key)
-            choices.append(questionary.Choice(title=f"{label}: {current}", value=key))
+
+            # Disabled Options            
+            if options == None:
+                choices.append(questionary.Choice(title=f"{label}: {current}", value=key, disabled="coming soon"))
+            else:
+                choices.append(questionary.Choice(title=f"{label}: {current}", value=key))
+
         choices.append(questionary.Choice("Finish", value="__finish__"))
         menu_style = Style([
             ("highlighted", colors.PRIMARY),
-            ("instruction", colors.GREY)
+            ("instruction", colors.GREY),
+            ("disabled", colors.GREY)
         ])
         picked = questionary.select(
             "ani-sub configurations",
@@ -83,10 +95,25 @@ def config():
             break
 
         field = next(f for f in FIELDS if f[0] == picked)
-        key, label, kind, options = field
+        key, label, qmark, kind, options = field
+
 
         if kind == "select":
-            new_value = questionary.select(f"{label}:", choices=options, pointer=">").ask()
+            new_value = questionary.select(
+                f"{label}:",
+                choices=options,
+                pointer=">",
+                qmark=qmark,
+                style=menu_style,
+                ).ask()
+        elif kind == "autocomplete":
+            typed = questionary.autocomplete(
+                f"{label}:",
+                choices=options,
+                qmark=qmark,
+                validate=lambda text: text in options,
+            ).ask()
+            new_value = typed.split(" - ", 1)[0] if typed else None
         else:
             current = cfg.get(key) or ""
             new_value = questionary.text(f"{label}", default=str(current)).ask()
@@ -94,9 +121,12 @@ def config():
         if new_value is not None:
             cfg.set_value(key, new_value)
 
-# TODO: Create Cache Management Command
+
+
+# Cache Management Command
 cache_app = typer.Typer(no_args_is_help=True)
 app.add_typer(cache_app, name="cache")
+
 
 @cache_app.command("info")
 def cache_info():
@@ -105,6 +135,7 @@ def cache_info():
     console.print(f"entry count     : {cache.count()}")
     console.print(f"size            : {cache.size()}")
     console.print(f"estimated size  : {cache.size_estimated()}")
+
 
 @cache_app.command("clear")
 def cache_clear():
@@ -121,7 +152,6 @@ def cache_clear():
                     console.print(f"Successfully cleared {cache.size()} ({cache.size_estimated()}) of cache(s)")
             except Exception as e:
                 print(f"Something went wrong! : {e}")
-
 
 
 if __name__  == "__main__":

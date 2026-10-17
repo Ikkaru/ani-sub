@@ -22,7 +22,7 @@ CONFIG_PATH = CONFIG_DIR / "config.toml"
 DEFAULTS = {
     "engine": {"active": None, "category": None},
     "target_lang": None,
-    "source_lang": None,
+    "source_lang": "en",
     "player": "mpv"
 }
 

@@ -50,11 +50,13 @@ def count() -> int:
         row = conn.execute("SELECT COUNT(*) FROM subs").fetchone()
     return row[0]
 
+
 # Count cache Byte size
 def size() -> int:
     if not STATE_DIR.exists():
         return 0
     return STATE_DIR.stat().st_size
+
 
 def size_estimated() -> str:
     b = size()
@@ -63,6 +65,7 @@ def size_estimated() -> str:
             return f"{b:.1f} {unit}"
         b /= 1024
     return f"{b:1.f} TB"
+
 
 # Clear Cache
 def clear() -> bool:
