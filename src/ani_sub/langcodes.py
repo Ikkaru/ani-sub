@@ -16,11 +16,21 @@ def validate(iso: str) -> bool:
 
 
 # Convert ISO langcodes to normal English string format
-def name(iso: str, default: str = "?") -> str:
+def to_name(iso: str, default: str = "?") -> str:
     return _load().get(iso, default)
 
-# Conver String Format to ISO code
+# Convert String Format to ISO code
+def to_code(name: str, default: str = "?") -> str:
+    key = next((k for k, v in _load().items() if v == name), None)
+    return key
 
 # List all Language
 def all_languages() -> dict[str, str]:
     return dict(_load())
+
+# Opus Code Exception
+_OPUS_TO_ISO = {"jap": "ja", "zho": "zh", "cmn": "zh"}
+
+# To convert non obvious opus code to ISO code
+def from_opus_code(code: str) -> str:
+    return _OPUS_TO_ISO.get(code, code)

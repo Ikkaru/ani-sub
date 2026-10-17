@@ -53,6 +53,7 @@ LANGS = [
     for code, names in langcodes.all_languages().items()
          ]
 
+
 FIELDS = [
     ("target_lang", "Target language", "🌏︎", "autocomplete", LANGS),
     ("source_lang", "Source language", "🌏︎", "text", None), #PS: For now this is not required because ani-cli using default track which has english sub
