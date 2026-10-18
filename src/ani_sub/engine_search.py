@@ -14,6 +14,10 @@ class ModelHit:
     size_mb: int = 0
 
 
+def search(src: str, tgt: str) -> list[ModelHit]:
+    return _search_opus(src, tgt)
+
+
 # Dedicated Search Query for opus-mt model
 def _search_opus(src: str, tgt: str) -> list[ModelHit]:
     from ani_sub.langcodes import to_opus_code
