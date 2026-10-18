@@ -28,9 +28,13 @@ def to_code(name: str, default: str = "?") -> str:
 def all_languages() -> dict[str, str]:
     return dict(_load())
 
-# Opus Code Exception
-_OPUS_TO_ISO = {"jap": "ja", "zho": "zh", "cmn": "zh"}
+# Opus Code Exception (Cuz Naming on Opus model is Stupid)
+_OPUS_TO_ISO = {"jap": "ja", "zho": "zh", "cmn": "zh"} # zh only for protection (i think this is not needed)
+_ISO_TO_OPUS = {"ja": "jap"}
 
 # To convert non obvious opus code to ISO code
 def from_opus_code(code: str) -> str:
     return _OPUS_TO_ISO.get(code, code)
+# To convert from iso to opus, im find that only ja is different, will be added more if i find more
+def to_opus_code(iso: str) -> str:
+    return _ISO_TO_OPUS.get(iso, iso)

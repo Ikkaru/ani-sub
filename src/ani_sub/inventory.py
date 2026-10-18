@@ -27,6 +27,7 @@ def _save(data: dict):
 def category_of(repo: str) -> str:
     return "bilingual" if "opus-mt-" in repo else "multilingual"
 
+# TODO: Added More Compatibility for future model
 def pair_from_repo(repo: str) -> str | None:
     """'Helsinki-NLP/opus-mt-en-id' -> 'en-id'; 'opus-mt-en-jap' -> 'en-ja'."""
     name = repo.split("/")[-1]
