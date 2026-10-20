@@ -39,7 +39,6 @@ class OpusEngine:
                 generated = self._model.generate(
                     **batch,
                     num_beams=1,
-                    max_new_tokens=512,
                 )
                 out.extend(self._tokenizer.batch_decode(generated, skip_special_tokens=True))
             return out
