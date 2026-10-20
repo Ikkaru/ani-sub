@@ -239,6 +239,17 @@ def config():
         if new_value is not None:
             cfg.set_value(key, new_value)
 
+# Translate Command
+@app.command()
+def translate(
+    sub: str,
+    referer: str,
+):
+    "Perform translation on given sublinks and referer"
+    from ani_sub import pipeline
+
+    orig, trans = pipeline.process(sub, referer)
+    console.print(f"{orig}\n{trans or ''}")
 
 
 # Cache Management Command

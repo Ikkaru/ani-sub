@@ -1,12 +1,21 @@
 import hashlib
 import tempfile
 from pathlib import Path
-
 import httpx
-
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from ani_sub import cache, config as cfg, engine, inventory, vtt
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+BATCH = 16
+
+console = Console(stderr=True)
 
 def _fetch_vtt(sub_url: str, referer: str) -> str:
     resp = httpx.get(
@@ -40,7 +49,8 @@ def process(sub_url: str, referer: str) -> tuple[Path, Path | None]:
     trans_path = base.with_name(f"{base.name}_trans.vtt")
 
     # Fetch and write
-    orig_path.write_text(_fetch_vtt(sub_url, referer), encoding="utf-8")
+    with console.status("Fetching Subtitles..."):
+        orig_path.write_text(_fetch_vtt(sub_url, referer), encoding="utf-8")
 
     # If src lang = tgt lang, no need for translation
     if src == tgt:
@@ -50,23 +60,38 @@ def process(sub_url: str, referer: str) -> tuple[Path, Path | None]:
     sha = inventory.installed().get(repo, {}).get("sha", "")
     tr = engine.get(repo)
 
-    # Parse the subtitle
-    cues = vtt.parse(str(orig_path))
-    texts = [c.text for c in cues]
+    with console.status("Parsing subtitle..."):
+        # Parse the subtitle
+        cues = vtt.parse(str(orig_path))
+        texts = [c.text for c in cues]
 
-    # Output
-    results: list[str | None] = []
-
-    for t in texts:
-        results.append(cache.get(cache.make_key(t, repo, sha, src, tgt)) if t.strip() else None) # Search in the cache
+        # Output
+        results: list[str | None] = [
+            cache.get(cache.make_key(t, repo, sha, src, tgt)) if t.strip() else None
+            for t in texts
+        ]
 
     todo = [(i, texts[i]) for i, r in enumerate(results) if r is None]
-    if todo:
-        translated = tr.translate_batch([t for _, t in todo], batch_size=16)
-        for (i, t), out in zip(todo, translated):
-            results[i] = out
-            cache.store(cache.make_key(t, repo, sha, src, tgt), src, tgt, out) # Store to the cache
+    from_cache = len(texts) - len(todo)
+    console.print(f"[dim]{from_cache} loaded from Cache, {len(todo)} will translated[/dim]")
 
+    if todo:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Translating {task.completed}/{task.total} cue"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("translate", total=len(todo))
+            for start in range(0, len(todo), BATCH):
+                chunk = todo[start : start + BATCH]
+                outs = tr.translate_batch([t for _, t in chunk], batch_size=BATCH)
+                for (i, t), out in zip(chunk, outs):
+                    results[i] = out
+                    cache.store(cache.make_key(t, repo, sha, src, tgt), src, tgt, out)
+                progress.advance(task, len(chunk))
     # VTT out
     out_cues = [
         vtt.Cue(index=c.index, start=c.start, end=c.end, text=results[c.index] or c.text)
