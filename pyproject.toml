@@ -9,10 +9,27 @@ dependencies = [
     "platformdirs>=4.12.4",
     "pyyaml>=6.0.3",
     "questionary>=2.1.1",
+    "rich>=15.0.0",
     "tomli>=2.5.0",
     "tomli-w>=1.2.0",
     "typer>=0.27.3",
 ]
+
+[project.optional-dependencies]
+bilingual = [
+    "transformers>=5,<6",
+    "sentencepiece>=0.2",
+    "torch>=2.2",
+    "sacremoses>=0.2",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
 [project.scripts]
 ani-sub = "ani_sub.cli:app"

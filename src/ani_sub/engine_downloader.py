@@ -160,6 +160,7 @@ def install(hit: engine_search.ModelHit) -> str:
                 repo_id=hit.repo,
                 revision=hit.sha,
                 local_dir=target,
+                allow_patterns=["*.json", "*.spm", "*.txt", "*.model", "*.bin", "*.safetensors"],
                 tqdm_class=RichProgress
             )
 
