@@ -77,7 +77,7 @@ menu_style = Style([
 
 # Engine Selection
 def _pick_model_for(src: str, tgt: str) -> str | None:
-    active = cfg.get("engine.active").split("/")[-1]
+    active = (cfg.get("engine.active") or "").split("/")[-1]
     installed = inventory.covering(tgt)
     installed_repos = {m["repo"] for m in installed}
 
@@ -149,7 +149,6 @@ def _pick_model_for(src: str, tgt: str) -> str | None:
         if not typer.confirm(f"Download {picked}?", default=True, abort=True):
             return None
 
-        engine_search.describe(hit)
         engine_downloader.install(hit)
 
     return picked
