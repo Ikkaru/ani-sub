@@ -31,6 +31,8 @@ def install(hit: engine_search.ModelHit) -> str:
         transient=True
         ) as p:
 
+
+        # Custom Progres Bar
         class RichProgress:
             _active_task_id = None  # Menyimpan ID task yang sedang aktif di layar
 

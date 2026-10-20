@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.text import Text
 from importlib.metadata import version as pkg_version
 from ani_sub import config as cfg
-from ani_sub import colors, langcodes
+from ani_sub import colors, langcodes, inventory, engine_search, engine_downloader
 
 console = Console()
 
@@ -55,12 +55,102 @@ LANGS = [
 
 
 FIELDS = [
+    ("engine.active", "Engine", "⌬", "select", None),
     ("target_lang", "Target language", "🌏︎", "autocomplete", LANGS),
-    ("source_lang", "Source language", "🌏︎", "text", None), #PS: For now this is not required because ani-cli using default track which has english sub
+    ("source_lang", "Source language", "🌏︎", "disabled", None), #PS: For now this is not required because ani-cli using default track which has english sub
     ("player", "Player", "▶", "select", ["mpv", "vlc", "auto"]),
 ]
 
+menu_style = Style([
+            ("highlighted", f"fg:{colors.PRIMARY}"),
+            ("instruction", f"fg:{colors.GREY}"),
+            ("disabled", f"fg:{colors.GREY}"),
+            ("active", f"fg:{colors.ACTIVE}"),
+            ("download", f"fg:{colors.DARK_WHITE}"),
+            ("installed", f"fg:{colors.WHITE}")
+        ])
 
+# Engine Selection
+def _pick_model_for(src: str, tgt: str) -> str | None:
+    active = cfg.get("engine.active").split("/")[-1]
+    installed = inventory.covering(tgt)
+    installed_repos = {m["repo"] for m in installed}
+
+
+    hits = []
+    try:
+        with console.status("Searching for Model"):
+            hits = engine_search.search(src, tgt)
+
+            if hits:
+                hits = engine_search.describe_all(hits)
+
+        
+    except Exception as e:
+        console.print(f"[yellow] Failed to retrive model available for download [/yellow]")
+        
+    choices = []
+
+    # Installed Model
+    for m in installed:
+        name = m["repo"].split("/")[-1]
+        if name == active:
+            choices.append(questionary.Choice(
+                title=[("class:active", f"✓ {name}")],
+                value=m["repo"]
+            ))
+        else:
+            choices.append(questionary.Choice(
+                title=[("class:installed", f"○ {name}")],
+                value=m["repo"]
+            ))
+
+    # Model Available to Download 
+    for h in hits:
+        if h.repo in installed_repos:
+            continue
+        name = h.repo.split("/")[-1]
+        size = f"{h.size_mb}MB" if h.size_mb else "?"
+        choices.append(questionary.Choice(
+            title=[("class:download", f"↓ {name} ({size})")],
+            value=h.repo
+        ))
+
+    if not choices:
+        console.print("[red] No model available for this language.")
+        return None
+
+    picked = questionary.select(
+        f"Select Engine for {tgt}:",
+        choices=choices,
+        qmark="⌬",
+        pointer=">",
+        instruction="(↑/↓ to navigate, enter to select)",
+        style=menu_style
+    ).ask()
+
+    if picked is None:
+        return None
+
+    if picked not in installed_repos:
+        hit = next((h for h in hits if h.repo == picked), None)
+        # Sanity Check
+        if hit is None:
+            console.print("[red]Model not found.[/red]")
+            return None
+
+        console.print(f"Model Information:\n repo\t\t: [bold cyan]{hit.repo}[/bold cyan]\n downloads\t: [bold cyan]{hit.downloads}[/bold cyan]\n size\t\t: [bold cyan]{hit.size_mb}MB[/bold cyan]")
+        
+        if not typer.confirm(f"Download {picked}?", default=True, abort=True):
+            return None
+
+        engine_search.describe(hit)
+        engine_downloader.install(hit)
+
+    return picked
+        
+
+    
 @app.command()
 def config():
     """Open Configuration menu """
@@ -70,17 +160,13 @@ def config():
             current = cfg.get(key)
 
             # Disabled Options            
-            if options == None:
-                choices.append(questionary.Choice(title=f"{label}: {current}", value=key, disabled="coming soon"))
+            if kind == "disabled":
+                choices.append(questionary.Choice(title=f"{label}: {current or '-'}", value=key, disabled="Default"))
             else:
                 choices.append(questionary.Choice(title=f"{label}: {current}", value=key))
 
         choices.append(questionary.Choice("Finish", value="__finish__"))
-        menu_style = Style([
-            ("highlighted", colors.PRIMARY),
-            ("instruction", colors.GREY),
-            ("disabled", colors.GREY)
-        ])
+        
         picked = questionary.select(
             "ani-sub configurations",
             choices=choices,
@@ -100,13 +186,27 @@ def config():
 
 
         if kind == "select":
-            new_value = questionary.select(
-                f"{label}:",
-                choices=options,
-                pointer=">",
-                qmark=qmark,
-                style=menu_style,
-                ).ask()
+            if key == "engine.active":
+                src = cfg.get("source_lang") or "en"
+                tgt = cfg.get("target_lang")
+                if not tgt:
+                    console.print("[yellow]Please select source and target language first![/yellow]")
+                    continue
+
+                model = _pick_model_for(src, tgt)
+                if model:
+                    cfg.set_value("engine.category", inventory.category_of(model))
+                    new_value = model
+                else:
+                    new_value = None
+            else:    
+                new_value = questionary.select(
+                    f"{label}:",
+                    choices=options,
+                    pointer=">",
+                    qmark=qmark,
+                    style=menu_style,
+                    ).ask()
         elif kind == "autocomplete":
             typed = questionary.autocomplete(
                 f"{label}:",
@@ -114,7 +214,20 @@ def config():
                 qmark=qmark,
                 validate=lambda text: text in options,
             ).ask()
-            new_value = typed.split(" - ", 1)[0] if typed else None
+
+            if typed is None:
+                new_value = None
+            else:
+                code = typed.split(" - ", 1)[0]
+                model = _pick_model_for(cfg.get("source_lang") or "en", code)
+                if model:
+                    cfg.set_value("engine.active", model)
+                    cfg.set_value("engine.category", "bilingual")
+                    new_value = code
+                else:
+                    new_value = None
+                
+
         else:
             current = cfg.get(key) or ""
             new_value = questionary.text(f"{label}", default=str(current)).ask()

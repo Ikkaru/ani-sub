@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from huggingface_hub import HfApi, list_models
+from concurrent.futures import ThreadPoolExecutor
 
 api = HfApi()
 
@@ -31,7 +32,7 @@ def _search_opus(src: str, tgt: str) -> list[ModelHit]:
         author= "Helsinki-NLP",
         pipeline_tag="translation",
         sort="downloads",
-        limit=30
+        limit=10
     )
 
     # search HF fuzzy
@@ -49,3 +50,12 @@ def describe(hit: ModelHit) -> ModelHit:
     hit.sha = info.sha
     hit.size_mb = sum(s.size or 0 for s in info.siblings) // 1_000_000
     return hit
+
+def describe_all(hits: list[ModelHit], workers: int = 8) -> list[ModelHit]:
+    def _safe(h):
+        try:
+            return describe(h)
+        except Exception:
+            return h
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(_safe, hits))
