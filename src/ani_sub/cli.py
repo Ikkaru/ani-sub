@@ -58,8 +58,11 @@ FIELDS = [
     ("engine.active", "Engine", "⌬", "select", None),
     ("target_lang", "Target language", "🌏︎", "autocomplete", LANGS),
     ("source_lang", "Source language", "🌏︎", "disabled", None), #PS: For now this is not required because ani-cli using default track which has english sub
-    ("player", "Player", "▶", "select", ["mpv", "vlc", "auto"]),
+    ("player", "Player", "▶", "select", [questionary.Choice(title=[("class:mpv", "mpv")], value="mpv"),
+                                         questionary.Choice(title=[("class:vlc", "vlc")], value="vlc"),
+                                         questionary.Choice(title=[("class:auto", "auto")], value="auto")]),
 ]
+
 
 menu_style = Style([
             ("highlighted", f"fg:{colors.PRIMARY}"),
@@ -67,7 +70,9 @@ menu_style = Style([
             ("disabled", f"fg:{colors.GREY}"),
             ("active", f"fg:{colors.ACTIVE}"),
             ("download", f"fg:{colors.DARK_WHITE}"),
-            ("installed", f"fg:{colors.WHITE}")
+            ("installed", f"fg:{colors.WHITE}"),
+            ("mpv", f"fg:{colors.MPV}"),
+            ("vlc", f"fg:{colors.VLC}")
         ])
 
 # Engine Selection
@@ -148,7 +153,6 @@ def _pick_model_for(src: str, tgt: str) -> str | None:
         engine_downloader.install(hit)
 
     return picked
-        
 
     
 @app.command()
@@ -205,6 +209,7 @@ def config():
                     choices=options,
                     pointer=">",
                     qmark=qmark,
+                    instruction="(↑/↓ to navigate, enter to select)",
                     style=menu_style,
                     ).ask()
         elif kind == "autocomplete":
