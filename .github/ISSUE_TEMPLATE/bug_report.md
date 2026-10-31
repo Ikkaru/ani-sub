@@ -23,7 +23,7 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
+**Environment**
  - OS: [e.g. Windows, Ubuntu, etc]
  - ani-sub version [e.g. 0.0.1]
 
